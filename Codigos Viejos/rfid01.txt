@@ -1,0 +1,98 @@
+#include <WiFi.h>
+#include <SPI.h>
+#include <MFRC522.h>
+#include <PubSubClient.h>
+
+
+// --- CONFIGURACIÓN DE RED Y SERVIDOR ---
+const char* ssid = "PEPANET";            
+const char* password = "C0PoDn13vE2@";  
+const char* mqtt_server = "38.250.161.112";  
+const int mqtt_port = 1883;                    
+
+const char* mqtt_user = "lotus";
+const char* mqtt_pass = "meinherz777";
+
+// --- PINES DEL RFID ---
+#define SDA_PIN   21    
+#define RST_PIN   22    
+
+MFRC522 mfrc522(SDA_PIN, RST_PIN);
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup_wifi() {
+  delay(10);
+  Serial.println("\nConectando a WiFi...");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\n¡WiFi Conectado!");
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Intentando conexión MQTT...");
+    String clientId = "ESP32_Dashboard_RFID";
+    if (client.connect(clientId.c_str(), mqtt_user, mqtt_pass)) {
+      Serial.println("¡Conectado al Broker!");
+      // Publicamos un estado inicial en el dashboard
+      client.publish("esp32/dashboard/estado", "Lector en Línea");
+    } else {
+      Serial.print("Falló, rc=");
+      Serial.print(client.state());
+      Serial.println(" Reintentando en 5 segundos...");
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  setup_wifi();
+  client.setServer(mqtt_server, mqtt_port);
+  SPI.begin();            
+  mfrc522.PCD_Init();    
+  Serial.println("Sistema de Dashboard Listo.");
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  if ( ! mfrc522.PICC_IsNewCardPresent() ) return;
+  if ( ! mfrc522.PICC_ReadCardSerial() ) return;
+
+  String uidLeido = "";
+  for (byte i = 0; i < mfrc522.uid.size; i++) {
+    if(mfrc522.uid.uidByte[i] < 0x10) uidLeido += "0";
+    uidLeido += String(mfrc522.uid.uidByte[i], HEX);
+  }
+  uidLeido.toUpperCase();
+
+  // Variables que enviaremos al Dashboard
+  String letra = "";
+  String componente = "";
+
+  if (uidLeido == "6A083E02") { letra = "A"; componente = "Memorias Ram"; }
+  else if (uidLeido == "A3D32530") { letra = "L"; componente = "Almacenamiento Solido SSD"; }
+  else if (uidLeido == "13D49E35") { letra = "R"; componente = "DDR4 SODIMM Kingston"; }
+  else if (uidLeido == "23174934") { letra = "S"; componente = "SSD SATA Crucial"; }
+
+  if (letra != "") {
+    Serial.println("Enviando datos de tarjeta al Dashboard...");
+  
+    // Publicamos en tópicos separados para que Node-RED los reciba de forma independiente
+    client.publish("esp32/dashboard/letra", letra.c_str());
+    client.publish("esp32/dashboard/componente", componente.c_str());
+    client.publish("esp32/dashboard/estado", "Tarjeta Escaneada con Éxito");
+  }
+
+  mfrc522.PICC_HaltA();
+  delay(1500); // Tiempo de espera entre lecturas
+}
