@@ -1,0 +1,55 @@
+// 1. Inicializar las variables de memoria interna de Node-RED
+let palabraActual = flow.get('palabraActual') || "";
+let ultimaLetra = flow.get('ultimaLetra') || "";
+let ultimoTiempo = flow.get('ultimoTiempo') || 0;
+
+let letraRecibida = msg.payload.toString().trim().toUpperCase();
+let tiempoActual = Date.now();
+
+// 2. COMANDO DE EMERGENCIA (Para limpiar la memoria)
+if (letraRecibida === "RESET" || letraRecibida === "") {
+    flow.set('palabraActual', "");
+    flow.set('ultimaLetra', "");
+    msg.payload = "ERROR";
+    return msg;
+}
+
+// 3. FILTRO ANTIRREBOTE (Evita dobles lecturas accidentales)
+if (letraRecibida === ultimaLetra && (tiempoActual - ultimoTiempo) < 2500) {
+    node.status({ fill: "yellow", shape: "ring", text: "Rebote: " + letraRecibida });
+    return null; // Detiene el flujo aquí
+}
+
+// Actualizar memoria con la última tarjeta válida
+flow.set('ultimaLetra', letraRecibida);
+flow.set('ultimoTiempo', tiempoActual);
+
+// 4. ACUMULAR LA LETRA
+palabraActual += letraRecibida;
+flow.set('palabraActual', palabraActual);
+node.status({ fill: "green", shape: "dot", text: "Armando: " + palabraActual });
+
+const palabrasValidas = ["SOL", "SAL", "OSO", "OJO", "ALA"];
+
+// 5. EVALUACIÓN DE LA PALABRA COMPLETA
+// Solo procesa y envía al LCD si ya se juntaron 3 letras
+if (palabraActual.length === 3) {
+    let msgResultado = {};
+
+    if (palabrasValidas.includes(palabraActual)) {
+        msgResultado.payload = palabraActual; // Envía la palabra correcta (ej. "OJO")
+        node.status({ fill: "blue", shape: "dot", text: "¡Éxito!: " + palabraActual });
+    } else {
+        msgResultado.payload = "ERROR"; // Envía error para pintar la pantalla de rojo
+        node.status({ fill: "red", shape: "dot", text: "Fallo: " + palabraActual });
+    }
+
+    // Vaciamos la memoria obligatoriamente para la próxima palabra
+    flow.set('palabraActual', "");
+    flow.set('ultimaLetra', "");
+
+    return msgResultado; // Esto viaja al nodo MQTT Out
+}
+
+// Si aún no hay 3 letras, no se envía nada al siguiente nodo
+return null;

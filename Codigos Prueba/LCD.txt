@@ -3,8 +3,8 @@
 #include <UTFTGLUE.h>
 #include "imagenes.h"
 
-const char* ssid = "PEPANET";
-const char* password = "C0PoDn13vE2@";
+const char* ssid = "ZKronosX";
+const char* password = "$Power2026";
 const char* mqtt_server = "38.250.161.112";
 const int mqtt_port = 1883;
 const char* mqtt_user = "lotus";
