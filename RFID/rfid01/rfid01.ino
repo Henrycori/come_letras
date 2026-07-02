@@ -119,7 +119,7 @@ void loop() {
   else if (uidLeido == "A3D32530") { letra = "L"; componente = "Almacenamiento Solido SSD"; numeroPista = 2; }
   else if (uidLeido == "13D49E35") { letra = "R"; componente = "DDR4 SODIMM Kingston"; numeroPista = 3; }
   else if (uidLeido == "23174934") { letra = "S"; componente = "SSD SATA Crucial"; numeroPista = 4; }
-  else if (uidLeido == "A373330E") { letra = "O"; componente = "AirTag Objeto O"; numeroPista = 5; }
+  else if (uidLeido == "A373330E") { letra = "O"; componente = "AirTag Ob jeto O"; numeroPista = 5; }
   else if (uidLeido == "033655A8") { letra = "J"; componente = "Componente J"; numeroPista = 6; }
 
   if (letra != "") {
